@@ -1,5 +1,6 @@
 import AppKit
 import Defaults
+import QuickLookThumbnailing
 import Sauce
 import UniformTypeIdentifiers
 
@@ -34,7 +35,7 @@ class Clipboard {
     .appleWebArchive,
     .safariWebArchve
   ]
-  private let maxFileImageSize = 50_000_000
+  private let fileThumbnailSize = CGSize(width: 400, height: 400)
 
   private var enabledTypes: Set<NSPasteboard.PasteboardType> { Defaults[.enabledPasteboardTypes] }
   private var disabledTypes: Set<NSPasteboard.PasteboardType> { supportedTypes.subtracting(enabledTypes) }
@@ -229,10 +230,6 @@ class Clipboard {
       return
     }
 
-    if let fileImage = fileImageContent(contents) {
-      contents.append(fileImage)
-    }
-
     let historyItem = HistoryItem(contents: contents)
 
     if #unavailable(macOS 15.0) {
@@ -244,6 +241,8 @@ class Clipboard {
     historyItem.title = historyItem.generateTitle()
 
     onNewCopyHooks.forEach({ $0(historyItem) })
+
+    addFileThumbnail(to: historyItem)
   }
 
   private func shouldIgnore(_ types: Set<NSPasteboard.PasteboardType>) -> Bool {
@@ -279,14 +278,11 @@ class Clipboard {
   }
 
   // Copying an image file (e.g. a screenshot saved to Desktop) puts only its URL
-  // on pasteboard. Read the file now while pasteboard grants access to it,
-  // so the item can show the image even though Maccy is sandboxed.
-  // When files are stored, the image is only used for previews and the file is pasted.
-  // Otherwise, the image is stored as a regular image so it can be pasted.
-  private func fileImageContent(_ contents: [HistoryItemContent]) -> HistoryItemContent? {
-    let imageTypes = StorageType.images.types
-    guard !enabledTypes.isDisjoint(with: imageTypes),
-          !contents.contains(where: { imageTypes.contains(NSPasteboard.PasteboardType($0.type)) }),
+  // on pasteboard. Generate a small thumbnail now while pasteboard grants access
+  // to the file, so the preview can show it even though Maccy is sandboxed.
+  // QuickLook reads and decodes the file out of process, only the thumbnail is stored.
+  private func addFileThumbnail(to item: HistoryItem) {
+    guard item.fileURLs.count == 1,
           let urls = pasteboard.readObjects(
             forClasses: [NSURL.self],
             options: [.urlReadingFileURLsOnly: true]
@@ -294,28 +290,38 @@ class Clipboard {
           urls.count == 1,
           let url = urls.first,
           let type = UTType(filenameExtension: url.pathExtension),
-          type.conforms(to: .image),
-          let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
-          size <= maxFileImageSize,
-          let data = try? Data(contentsOf: url),
-          let image = NSImage(data: data) else {
-      return nil
+          type.conforms(to: .image) else {
+      return
     }
 
-    if enabledTypes.isSuperset(of: StorageType.files.types) {
-      return HistoryItemContent(type: NSPasteboard.PasteboardType.fileImage.rawValue, value: data)
-    }
+    let size = fileThumbnailSize
+    let scale = NSScreen.main?.backingScaleFactor ?? 2
+    Task {
+      guard let thumbnail = await Self.thumbnail(of: url, size: size, scale: scale),
+            !item.contents.contains(where: { $0.type == NSPasteboard.PasteboardType.fileImage.rawValue }) else {
+        return
+      }
 
-    let pasteboardType = NSPasteboard.PasteboardType(type.identifier)
-    if imageTypes.contains(pasteboardType), enabledTypes.contains(pasteboardType) {
-      return HistoryItemContent(type: pasteboardType.rawValue, value: data)
+      item.contents.append(HistoryItemContent(type: NSPasteboard.PasteboardType.fileImage.rawValue, value: thumbnail))
     }
+  }
 
-    guard enabledTypes.contains(.tiff), let tiff = image.tiffRepresentation else {
-      return nil
+  nonisolated private static func thumbnail(of url: URL, size: CGSize, scale: CGFloat) async -> Data? {
+    let request = QLThumbnailGenerator.Request(
+      fileAt: url,
+      size: size,
+      scale: scale,
+      representationTypes: .thumbnail
+    )
+
+    return await withCheckedContinuation { continuation in
+      QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { representation, _ in
+        let data = representation.flatMap {
+          NSBitmapImageRep(cgImage: $0.cgImage).representation(using: .jpeg, properties: [.compressionFactor: 0.8])
+        }
+        continuation.resume(returning: data)
+      }
     }
-
-    return HistoryItemContent(type: NSPasteboard.PasteboardType.tiff.rawValue, value: tiff)
   }
 
   private func isEmptyString(_ item: NSPasteboardItem) -> Bool {

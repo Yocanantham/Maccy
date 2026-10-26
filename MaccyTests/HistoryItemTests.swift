@@ -91,8 +91,8 @@ extension SharedStateTests {
       #expect(historyItem(url).title == "file://\(path)")
     }
 
-    @Test("Image from copied image file keeps file title")
-    func imageFromCopiedImageFile() throws {
+    @Test("Thumbnail of copied image file is only used for preview")
+    func thumbnailOfCopiedImageFile() throws {
       let url = try #require(Bundle(for: BundleToken.self).url(forResource: "guy", withExtension: "jpeg"))
       let data = try Data(contentsOf: url)
       let item = HistoryItem()
@@ -102,9 +102,26 @@ extension SharedStateTests {
         HistoryItemContent(type: NSPasteboard.PasteboardType.fileImage.rawValue, value: data)
       ]
       item.title = item.generateTitle()
-      #expect(item.imageData == data)
-      #expect(item.image != nil)
+      #expect(item.fileImageData == data)
+      #expect(item.image == nil)
       #expect(item.title == url.absoluteString)
+    }
+
+    @Test("Copy of same file without thumbnail supersedes item with thumbnail")
+    func copyOfSameFileSupersedesItemWithThumbnail() throws {
+      let url = URL(fileURLWithPath: "/tmp/foo.png")
+      let item = HistoryItem()
+      Storage.shared.context.insert(item)
+      item.contents = [
+        HistoryItemContent(type: NSPasteboard.PasteboardType.fileURL.rawValue, value: url.dataRepresentation),
+        HistoryItemContent(type: NSPasteboard.PasteboardType.fileImage.rawValue, value: Data([1]))
+      ]
+      let newItem = HistoryItem()
+      Storage.shared.context.insert(newItem)
+      newItem.contents = [
+        HistoryItemContent(type: NSPasteboard.PasteboardType.fileURL.rawValue, value: url.dataRepresentation)
+      ]
+      #expect(newItem.supersedes(item))
     }
 
     @Test("Text from Universal Clipboard")

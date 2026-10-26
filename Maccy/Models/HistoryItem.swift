@@ -64,6 +64,7 @@ class HistoryItem {
   private static let transientTypes: [String] = [
     NSPasteboard.PasteboardType.modified.rawValue,
     NSPasteboard.PasteboardType.fromMaccy.rawValue,
+    NSPasteboard.PasteboardType.fileImage.rawValue,
     NSPasteboard.PasteboardType.linkPresentationMetadata.rawValue,
     NSPasteboard.PasteboardType.customWebKitPasteboardData.rawValue,
     NSPasteboard.PasteboardType.source.rawValue,
@@ -165,6 +166,8 @@ class HistoryItem {
       .compactMap { URL(dataRepresentation: $0, relativeTo: nil, isAbsolute: true) }
   }
 
+  var fileImageData: Data? { contentData([.fileImage]) }
+
   var htmlData: Data? { contentData([.html]) }
   var html: NSAttributedString? {
     guard let data = htmlData else {
@@ -176,7 +179,7 @@ class HistoryItem {
 
   var imageData: Data? {
     var data: Data?
-    data = contentData(Self.imageTypes) ?? contentData([.fileImage])
+    data = contentData(Self.imageTypes)
     if data == nil, universalClipboardImage, let url = fileURLs.first {
       data = try? Data(contentsOf: url)
     }

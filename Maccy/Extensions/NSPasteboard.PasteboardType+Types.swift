@@ -18,7 +18,7 @@ nonisolated extension NSPasteboard.PasteboardType: Defaults.Serializable {
   // Marks that copy was made from Maccy.
   static let fromMaccy = NSPasteboard.PasteboardType(rawValue: "org.p0deje.Maccy")
 
-  // Contents of a copied image file, stored by Maccy to preview it.
+  // Thumbnail of a copied image file, stored by Maccy to preview it.
   // Never written back to pasteboard.
   static let fileImage = NSPasteboard.PasteboardType(rawValue: "org.p0deje.Maccy.file-image")
 

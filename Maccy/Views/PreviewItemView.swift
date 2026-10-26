@@ -53,6 +53,14 @@ struct PreviewItemView: View {
           }
         }
       } else {
+        if let fileImage = item.fileImage {
+          previewImage {
+            Image(nsImage: fileImage)
+              .resizable()
+          }
+          .padding(.bottom)
+        }
+
         if item.previewText.byteCount >= Self.largeTextThreshold {
           LargeTextView(text: item.previewText.string)
             .id("textpreview-\(item.id)")
