@@ -12,3 +12,8 @@
 "FirstCopiedAt" = "Date de première copie";
 "NumberOfCopies" = "Nombre de copies";
 "SortByTooltip" = "Par défaut : Date de dernière copie.";
+"Screenshots" = "Screenshots:";
+"AddScreenshots" = "Add new screenshots to history";
+"ChooseFolder" = "Choose Folder…";
+"ChooseFolderMessage" = "Choose the folder where screenshots are saved. By default, it is Desktop.";
+"ScreenshotsDescription" = "Screenshots saved to this folder are added as images without copying them.";

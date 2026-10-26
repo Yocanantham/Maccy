@@ -56,11 +56,13 @@ struct StorageSettingsPane: View {
     }
   }
 
+  @Default(.addScreenshots) private var addScreenshots
   @Default(.size) private var size
   @Default(.sortBy) private var sortBy
 
   @State private var viewModel = ViewModel()
   @State private var storageSize = Storage.shared.size
+  @State private var screenshotsFolderName = ScreenshotWatcher.shared.folderName
 
   private let sizeFormatter: NumberFormatter = {
     let formatter = NumberFormatter()
@@ -88,6 +90,34 @@ struct StorageSettingsPane: View {
           label: { Text("Text", tableName: "StorageSettings") }
         )
         Text("SaveDescription", tableName: "StorageSettings")
+          .controlSize(.small)
+          .foregroundStyle(.gray)
+      }
+
+      Settings.Section(
+        bottomDivider: true,
+        label: { Text("Screenshots", tableName: "StorageSettings") }
+      ) {
+        Toggle(
+          isOn: $addScreenshots,
+          label: { Text("AddScreenshots", tableName: "StorageSettings") }
+        )
+        .onChange(of: addScreenshots) { _, isOn in
+          if isOn && screenshotsFolderName == nil {
+            chooseScreenshotsFolder()
+            addScreenshots = screenshotsFolderName != nil
+          }
+        }
+        HStack {
+          Text(verbatim: screenshotsFolderName ?? "—")
+          Button {
+            chooseScreenshotsFolder()
+          } label: {
+            Text("ChooseFolder", tableName: "StorageSettings")
+          }
+        }
+        .disabled(!addScreenshots)
+        Text("ScreenshotsDescription", tableName: "StorageSettings")
           .controlSize(.small)
           .foregroundStyle(.gray)
       }
@@ -122,6 +152,12 @@ struct StorageSettingsPane: View {
         .help(Text("SortByTooltip", tableName: "StorageSettings"))
         .accessibilityLabel(Text("SortBy", tableName: "StorageSettings"))
       }
+    }
+  }
+
+  private func chooseScreenshotsFolder() {
+    if ScreenshotWatcher.shared.chooseFolder() {
+      screenshotsFolderName = ScreenshotWatcher.shared.folderName
     }
   }
 }

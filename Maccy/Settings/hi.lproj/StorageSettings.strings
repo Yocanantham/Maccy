@@ -12,3 +12,8 @@
 "FirstCopiedAt" = "पहली प्रति का समय";
 "NumberOfCopies" = "प्रतियों की संख्या";
 "SortByTooltip" = "डिफ़ॉल्ट: अंतिम प्रति का समय।";
+"Screenshots" = "Screenshots:";
+"AddScreenshots" = "Add new screenshots to history";
+"ChooseFolder" = "Choose Folder…";
+"ChooseFolderMessage" = "Choose the folder where screenshots are saved. By default, it is Desktop.";
+"ScreenshotsDescription" = "Screenshots saved to this folder are added as images without copying them.";

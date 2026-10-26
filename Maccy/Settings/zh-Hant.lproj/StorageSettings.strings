@@ -12,3 +12,8 @@
 "FirstCopiedAt" = "首次拷貝時間";
 "NumberOfCopies" = "拷貝次數";
 "SortByTooltip" = "預設：上次拷貝時間。";
+"Screenshots" = "Screenshots:";
+"AddScreenshots" = "Add new screenshots to history";
+"ChooseFolder" = "Choose Folder…";
+"ChooseFolderMessage" = "Choose the folder where screenshots are saved. By default, it is Desktop.";
+"ScreenshotsDescription" = "Screenshots saved to this folder are added as images without copying them.";

@@ -24,6 +24,7 @@ nonisolated extension Defaults.Keys {
   nonisolated(unsafe) private static let preferencesSuite: UserDefaults = .standard
 #endif
 
+  static let addScreenshots = Key<Bool>("addScreenshots", default: false, suite: preferencesSuite)
   static let clearOnQuit = Key<Bool>("clearOnQuit", default: false, suite: preferencesSuite)
   static let clearSystemClipboard = Key<Bool>("clearSystemClipboard", default: false, suite: preferencesSuite)
   static let clipboardCheckInterval = Key<Double>("clipboardCheckInterval", default: 0.5, suite: preferencesSuite)
@@ -60,6 +61,7 @@ nonisolated extension Defaults.Keys {
   static let openPreviewAutomatically = Key<Bool>("openPreviewAutomatically", default: true, suite: preferencesSuite)
   static let previewDelay = Key<Int>("previewDelay", default: 1500, suite: preferencesSuite)
   static let removeFormattingByDefault = Key<Bool>("removeFormattingByDefault", default: false, suite: preferencesSuite)
+  static let screenshotsFolder = Key<Data?>("screenshotsFolder", suite: preferencesSuite)
   static let searchMode = Key<Search.Mode>("searchMode", default: .exact, suite: preferencesSuite)
   static let showFooter = Key<Bool>("showFooter", default: true, suite: preferencesSuite)
   static let showInStatusBar = Key<Bool>("showInStatusBar", default: true, suite: preferencesSuite)
