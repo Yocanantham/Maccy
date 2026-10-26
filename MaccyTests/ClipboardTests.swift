@@ -304,7 +304,8 @@ extension SharedStateTests {
     @Test("Stores image of copied image file")
     func storesImageOfCopiedImageFile() async throws {
       let url = FileManager.default.temporaryDirectory.appending(path: "maccy-screenshot.png")
-      let bitmap = try #require(NSBitmapImageRep(data: try #require(image.tiffRepresentation)))
+      let tiff = try #require(image.tiffRepresentation)
+      let bitmap = try #require(NSBitmapImageRep(data: tiff))
       let png = try #require(bitmap.representation(using: .png, properties: [:]))
       try png.write(to: url)
       defer { try? FileManager.default.removeItem(at: url) }
