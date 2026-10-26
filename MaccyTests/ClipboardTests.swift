@@ -301,6 +301,73 @@ extension SharedStateTests {
       #expect(Set(copied.contents.map(\.type)) == [stringType.rawValue])
     }
 
+    @Test("Stores image of copied image file")
+    func storesImageOfCopiedImageFile() async throws {
+      let url = FileManager.default.temporaryDirectory.appending(path: "maccy-screenshot.png")
+      let tiff = try #require(image.tiffRepresentation)
+      let bitmap = try #require(NSBitmapImageRep(data: tiff))
+      let png = try #require(bitmap.representation(using: .png, properties: [:]))
+      try png.write(to: url)
+      defer { try? FileManager.default.removeItem(at: url) }
+
+      let copies = try await waitForCopies(after: {
+        pasteboard.clearContents()
+        pasteboard.writeObjects([url as NSURL])
+      })
+      let copied = try #require(copies.first)
+      let fileImage = copied.contents.first { $0.type == NSPasteboard.PasteboardType.fileImage.rawValue }
+      #expect(fileImage?.value == png)
+      #expect(copied.image != nil)
+      #expect(copied.title.hasSuffix("/maccy-screenshot.png"))
+
+      clipboard.copy(copied)
+      #expect(pasteboard.data(forType: .fileImage) == nil)
+      #expect(pasteboard.string(forType: .fileURL)?.hasSuffix("/maccy-screenshot.png") == true)
+    }
+
+    @Test("Stores copied image file as image when files are disabled")
+    func storesCopiedImageFileAsImageWhenFilesAreDisabled() async throws {
+      Defaults[.enabledPasteboardTypes] = Set(StorageType.images.types + StorageType.text.types)
+
+      let url = FileManager.default.temporaryDirectory.appending(path: "maccy-screenshot-no-files.png")
+      let tiff = try #require(image.tiffRepresentation)
+      let bitmap = try #require(NSBitmapImageRep(data: tiff))
+      let png = try #require(bitmap.representation(using: .png, properties: [:]))
+      try png.write(to: url)
+      defer { try? FileManager.default.removeItem(at: url) }
+
+      let copies = try await waitForCopies(after: {
+        pasteboard.clearContents()
+        pasteboard.writeObjects([url as NSURL])
+        // Finder also puts the file name as text.
+        pasteboard.setString(url.lastPathComponent, forType: .string)
+      })
+      let copied = try #require(copies.first)
+      let types = Set(copied.contents.map(\.type))
+      #expect(types.contains(NSPasteboard.PasteboardType.png.rawValue))
+      #expect(!types.contains(fileURLType.rawValue))
+      #expect(!types.contains(NSPasteboard.PasteboardType.fileImage.rawValue))
+      #expect(copied.contents.first { $0.type == NSPasteboard.PasteboardType.png.rawValue }?.value == png)
+
+      clipboard.copy(copied)
+      #expect(pasteboard.data(forType: .png) == png)
+    }
+
+    @Test("Does not store image of copied non-image file")
+    func doesNotStoreImageOfCopiedNonImageFile() async throws {
+      let url = FileManager.default.temporaryDirectory.appending(path: "maccy-notes.txt")
+      try "foo".write(to: url, atomically: true, encoding: .utf8)
+      defer { try? FileManager.default.removeItem(at: url) }
+
+      let copies = try await waitForCopies(after: {
+        pasteboard.clearContents()
+        pasteboard.writeObjects([url as NSURL])
+      })
+      let copied = try #require(copies.first)
+      #expect(!copied.contents.contains { $0.type == NSPasteboard.PasteboardType.fileImage.rawValue })
+      #expect(copied.image == nil)
+    }
+
     private func waitForCopies(expectingCopy: Bool = true, after trigger: () -> Void) async throws -> [HistoryItem] {
       var copies: [HistoryItem] = []
       clipboard.onNewCopy { copies.append($0) }

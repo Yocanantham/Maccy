@@ -91,6 +91,22 @@ extension SharedStateTests {
       #expect(historyItem(url).title == "file://\(path)")
     }
 
+    @Test("Image from copied image file keeps file title")
+    func imageFromCopiedImageFile() throws {
+      let url = try #require(Bundle(for: BundleToken.self).url(forResource: "guy", withExtension: "jpeg"))
+      let data = try Data(contentsOf: url)
+      let item = HistoryItem()
+      Storage.shared.context.insert(item)
+      item.contents = [
+        HistoryItemContent(type: NSPasteboard.PasteboardType.fileURL.rawValue, value: url.dataRepresentation),
+        HistoryItemContent(type: NSPasteboard.PasteboardType.fileImage.rawValue, value: data)
+      ]
+      item.title = item.generateTitle()
+      #expect(item.imageData == data)
+      #expect(item.image != nil)
+      #expect(item.title == url.absoluteString)
+    }
+
     @Test("Text from Universal Clipboard")
     func textFromUniversalClipboard() {
       let url = URL(fileURLWithPath: "/tmp/foo.bar")
