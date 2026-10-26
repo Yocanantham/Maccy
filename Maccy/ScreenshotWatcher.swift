@@ -1,5 +1,6 @@
 import AppKit
 import Defaults
+import Logging
 import UniformTypeIdentifiers
 
 // Adds screenshots saved to the chosen folder to history
@@ -13,6 +14,8 @@ class ScreenshotWatcher {
   private static let screenshotApplication = "com.apple.screenshot.launcher"
   private static let maxImageSize = 50_000_000
 
+  private let logger = Logger(label: "org.p0deje.Maccy.ScreenshotWatcher")
+
   private var folder: URL?
   private var eventSource: (any DispatchSourceFileSystemObject)?
   private var knownFiles: Set<String> = []
@@ -22,7 +25,13 @@ class ScreenshotWatcher {
   func restart() {
     stop()
 
-    guard Defaults[.addScreenshots], let folder = resolveFolder() else {
+    guard Defaults[.addScreenshots] else {
+      logger.info("Screenshots: disabled")
+      return
+    }
+
+    guard let folder = resolveFolder() else {
+      logger.info("Screenshots: no folder chosen or bookmark can't be resolved")
       return
     }
 
@@ -99,6 +108,7 @@ class ScreenshotWatcher {
 
   private func start(_ url: URL, isStale: Bool) {
     guard url.startAccessingSecurityScopedResource() else {
+      logger.info("Screenshots: no access to \(url.path)")
       return
     }
     self.folder = url
@@ -109,11 +119,13 @@ class ScreenshotWatcher {
 
     let descriptor = open(url.path, O_EVTONLY)
     guard descriptor >= 0 else {
+      logger.info("Screenshots: can't watch \(url.path): \(String(cString: strerror(errno)))")
       stop()
       return
     }
 
     knownFiles = files(in: url)
+    logger.info("Screenshots: watching \(url.path) with \(knownFiles.count) files")
 
     let source = DispatchSource.makeFileSystemObjectSource(
       fileDescriptor: descriptor,
@@ -151,15 +163,20 @@ class ScreenshotWatcher {
     let currentFiles = files(in: folder)
     let newFiles = currentFiles.subtracting(knownFiles)
     knownFiles = currentFiles
+    logger.info("Screenshots: folder changed, new files: \(newFiles.sorted())")
 
     guard !Defaults[.ignoreEvents] else {
       return
     }
 
     for name in newFiles.sorted() {
-      guard let content = screenshotContent(at: folder.appending(path: name)) else {
+      let url = folder.appending(path: name)
+      let isScreenshot = getxattr(url.path, Self.screenCaptureAttribute, nil, 0, 0, 0) >= 0
+      guard let content = screenshotContent(at: url) else {
+        logger.info("Screenshots: skipped \(name), screen capture attribute: \(isScreenshot)")
         continue
       }
+      logger.info("Screenshots: added \(name)")
 
       let historyItem = HistoryItem(contents: [content])
 
