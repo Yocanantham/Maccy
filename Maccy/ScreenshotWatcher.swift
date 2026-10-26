@@ -26,7 +26,7 @@ class ScreenshotWatcher {
     stop()
 
     guard Defaults[.addScreenshots] else {
-      logger.info("Screenshots: disabled")
+      logger.debug("Screenshots: disabled")
       return
     }
 
@@ -125,7 +125,7 @@ class ScreenshotWatcher {
     }
 
     knownFiles = files(in: url)
-    logger.info("Screenshots: watching \(url.path) with \(knownFiles.count) files")
+    logger.debug("Screenshots: watching \(url.path) with \(knownFiles.count) files")
 
     let source = DispatchSource.makeFileSystemObjectSource(
       fileDescriptor: descriptor,
@@ -163,7 +163,7 @@ class ScreenshotWatcher {
     let currentFiles = files(in: folder)
     let newFiles = currentFiles.subtracting(knownFiles)
     knownFiles = currentFiles
-    logger.info("Screenshots: folder changed, new files: \(newFiles.sorted())")
+    logger.debug("Screenshots: folder changed, new files: \(newFiles.sorted())")
 
     guard !Defaults[.ignoreEvents] else {
       return
@@ -173,10 +173,10 @@ class ScreenshotWatcher {
       let url = folder.appending(path: name)
       let isScreenshot = getxattr(url.path, Self.screenCaptureAttribute, nil, 0, 0, 0) >= 0
       guard let content = screenshotContent(at: url) else {
-        logger.info("Screenshots: skipped \(name), screen capture attribute: \(isScreenshot)")
+        logger.debug("Screenshots: skipped \(name), screen capture attribute: \(isScreenshot)")
         continue
       }
-      logger.info("Screenshots: added \(name)")
+      logger.debug("Screenshots: added \(name)")
 
       let historyItem = HistoryItem(contents: [content])
 
