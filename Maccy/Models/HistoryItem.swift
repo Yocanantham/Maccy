@@ -176,7 +176,7 @@ class HistoryItem {
 
   var imageData: Data? {
     var data: Data?
-    data = contentData(Self.imageTypes)
+    data = contentData(Self.imageTypes) ?? contentData([.fileImage])
     if data == nil, universalClipboardImage, let url = fileURLs.first {
       data = try? Data(contentsOf: url)
     }

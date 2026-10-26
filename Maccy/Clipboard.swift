@@ -1,6 +1,7 @@
 import AppKit
 import Defaults
 import Sauce
+import UniformTypeIdentifiers
 
 class Clipboard {
   static let shared = Clipboard()
@@ -33,6 +34,7 @@ class Clipboard {
     .appleWebArchive,
     .safariWebArchve
   ]
+  private let maxFileImageSize = 50_000_000
 
   private var enabledTypes: Set<NSPasteboard.PasteboardType> { Defaults[.enabledPasteboardTypes] }
   private var disabledTypes: Set<NSPasteboard.PasteboardType> { supportedTypes.subtracting(enabledTypes) }
@@ -93,7 +95,8 @@ class Clipboard {
     }
 
     for content in contents {
-      guard content.type != NSPasteboard.PasteboardType.fileURL.rawValue else { continue }
+      guard content.type != NSPasteboard.PasteboardType.fileURL.rawValue,
+            content.type != NSPasteboard.PasteboardType.fileImage.rawValue else { continue }
       pasteboard.setData(content.value, forType: NSPasteboard.PasteboardType(content.type))
     }
 
@@ -226,6 +229,10 @@ class Clipboard {
       return
     }
 
+    if let fileImage = fileImageContent(contents) {
+      contents.append(fileImage)
+    }
+
     let historyItem = HistoryItem(contents: contents)
 
     if #unavailable(macOS 15.0) {
@@ -269,6 +276,32 @@ class Clipboard {
       }
     }
     return false
+  }
+
+  // Copying an image file (e.g. a screenshot saved to Desktop) puts only its URL
+  // on pasteboard. Read the file now while pasteboard grants access to it,
+  // so the item can show the image even though Maccy is sandboxed.
+  private func fileImageContent(_ contents: [HistoryItemContent]) -> HistoryItemContent? {
+    let imageTypes = StorageType.images.types
+    guard !enabledTypes.isDisjoint(with: imageTypes),
+          !contents.contains(where: { imageTypes.contains(NSPasteboard.PasteboardType($0.type)) }),
+          contents.filter({ $0.type == NSPasteboard.PasteboardType.fileURL.rawValue }).count == 1,
+          let urls = pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+          ) as? [URL],
+          urls.count == 1,
+          let url = urls.first,
+          let type = UTType(filenameExtension: url.pathExtension),
+          type.conforms(to: .image),
+          let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+          size <= maxFileImageSize,
+          let data = try? Data(contentsOf: url),
+          NSImage(data: data) != nil else {
+      return nil
+    }
+
+    return HistoryItemContent(type: NSPasteboard.PasteboardType.fileImage.rawValue, value: data)
   }
 
   private func isEmptyString(_ item: NSPasteboardItem) -> Bool {
