@@ -281,11 +281,12 @@ class Clipboard {
   // Copying an image file (e.g. a screenshot saved to Desktop) puts only its URL
   // on pasteboard. Read the file now while pasteboard grants access to it,
   // so the item can show the image even though Maccy is sandboxed.
+  // When files are stored, the image is only used for previews and the file is pasted.
+  // Otherwise, the image is stored as a regular image so it can be pasted.
   private func fileImageContent(_ contents: [HistoryItemContent]) -> HistoryItemContent? {
     let imageTypes = StorageType.images.types
     guard !enabledTypes.isDisjoint(with: imageTypes),
           !contents.contains(where: { imageTypes.contains(NSPasteboard.PasteboardType($0.type)) }),
-          contents.filter({ $0.type == NSPasteboard.PasteboardType.fileURL.rawValue }).count == 1,
           let urls = pasteboard.readObjects(
             forClasses: [NSURL.self],
             options: [.urlReadingFileURLsOnly: true]
@@ -297,11 +298,24 @@ class Clipboard {
           let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
           size <= maxFileImageSize,
           let data = try? Data(contentsOf: url),
-          NSImage(data: data) != nil else {
+          let image = NSImage(data: data) else {
       return nil
     }
 
-    return HistoryItemContent(type: NSPasteboard.PasteboardType.fileImage.rawValue, value: data)
+    if enabledTypes.isSuperset(of: StorageType.files.types) {
+      return HistoryItemContent(type: NSPasteboard.PasteboardType.fileImage.rawValue, value: data)
+    }
+
+    let pasteboardType = NSPasteboard.PasteboardType(type.identifier)
+    if imageTypes.contains(pasteboardType), enabledTypes.contains(pasteboardType) {
+      return HistoryItemContent(type: pasteboardType.rawValue, value: data)
+    }
+
+    guard enabledTypes.contains(.tiff), let tiff = image.tiffRepresentation else {
+      return nil
+    }
+
+    return HistoryItemContent(type: NSPasteboard.PasteboardType.tiff.rawValue, value: tiff)
   }
 
   private func isEmptyString(_ item: NSPasteboardItem) -> Bool {
